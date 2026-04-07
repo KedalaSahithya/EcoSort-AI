@@ -1,0 +1,7 @@
+streamlit
+tensorflow
+pillow
+pandas
+matplotlib
+gtts
+numpy
