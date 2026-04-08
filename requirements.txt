@@ -1,1 +1,19 @@
+streamlit
+tensorflow
+pillow
+pandas
+matplotlib
+gtts
+numpy
+>>>>>>> d121fd59beeb661c8b2ba0a5b51729f43c32b5eb
+=======
 Flask>=2.0
+=======
+streamlit
+tensorflow
+pillow
+pandas
+matplotlib
+gtts
+numpy
+>>>>>>> d121fd59beeb661c8b2ba0a5b51729f43c32b5eb
