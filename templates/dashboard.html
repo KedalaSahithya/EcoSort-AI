@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EcoSort AI Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+      body {
+        background: #eff6f1;
+      }
+      .hero {
+        background: linear-gradient(135deg, #0b5ed7, #198754);
+        border-radius: 28px;
+        color: white;
+      }
+      .card-soft {
+        border: none;
+        border-radius: 22px;
+        box-shadow: 0 18px 38px rgba(13, 110, 253, 0.08);
+      }
+      .category-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.85);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: #1e7e34;">
+      <div class="container-fluid">
+        <a class="navbar-brand fw-bold" href="{{ url_for('dashboard') }}">EcoSort AI</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="mainNav">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <li class="nav-item">
+              <a class="nav-link active" aria-current="page" href="{{ url_for('dashboard') }}">Home</a>
+            </li>
+          </ul>
+          <div class="d-flex align-items-center gap-3">
+            <span class="text-white">Hello, {{ username }}</span>
+            <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}">Logout</a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container py-5">
+      <div class="hero p-5 mb-4 position-relative overflow-hidden">
+        <div class="row align-items-center position-relative z-1">
+          <div class="col-lg-8">
+            <h1 class="display-5 fw-bold mb-3">Sort Smart, Live Green</h1>
+            <p class="lead fw-normal">Join the movement! Snap a photo or upload an image of your waste, and our AI will guide you on how to sort it correctly, upcycle creatively, and track your carbon footprint.</p>
+            <p class="small opacity-75 mb-0">Every item sorted makes a meaningful global impact.</p>
+          </div>
+          <div class="col-lg-4 text-lg-end mt-4 mt-lg-0 text-center text-lg-end">
+            <img src="{{ url_for('static', filename='ecosort_banner.png') }}" class="img-fluid rounded-4 shadow" style="max-height: 200px; object-fit: cover; border: 3px solid rgba(255,255,255,0.2);" alt="Eco Banner">
+          </div>
+        </div>
+      </div>
+
+      <div class="row gy-4">
+        <div class="col-xl-8">
+          <div class="row gy-4">
+
+
+            <div class="col-12">
+              <div class="card card-soft p-4">
+                <h5 class="mb-3">Upload Waste Image</h5>
+                <p class="text-muted">Choose a JPG or PNG image and click upload to classify the waste.</p>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                    {% for category, message in messages %}
+                      <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                  {% endif %}
+                {% endwith %}
+
+                {% if upload_error %}
+                  <div class="alert alert-danger">{{ upload_error }}</div>
+                {% endif %}
+                {% if prediction %}
+                  <div class="alert alert-success">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="fw-bold fs-5">Prediction</div>
+                        <button id="speakBtn" class="btn btn-sm btn-primary">🔊 Speak Info</button>
+                    </div>
+                    <div class="fs-4">{{ prediction|capitalize }} <span class="fs-6 text-muted ms-2">(Confidence: {{ '%.1f'|format(prediction_prob * 100) }}%)</span></div>
+                    
+                    {% if waste_info %}
+                    <hr>
+                    <div class="row g-2 mt-2" style="font-size: 0.95rem;">
+                        <div class="col-sm-6">
+                            <strong>♻️ Reusable/Recyclable:</strong> <br>{{ waste_info.reuse_percentage }}
+                        </div>
+                        <div class="col-sm-6">
+                            <strong>🗑️ Throw in:</strong> <br>
+                            <span class="badge {{ 'bg-primary text-white' if 'Blue' in waste_info.bin_color else 'bg-success text-white' if 'Green' in waste_info.bin_color else 'bg-warning text-dark' if 'Yellow' in waste_info.bin_color else 'bg-dark text-white' }}" style="padding: 0.5em 0.8em;">
+                                {{ waste_info.bin_color }}
+                            </span>
+                        </div>
+                    </div>
+                    <p class="mt-3 mb-2 small">{{ waste_info.description }}</p>
+
+                    <div class="alert mt-3 p-3 rounded" style="background-color: #eef7ff; border: none; font-size: 0.95rem;">
+                        <strong>🌍 Carbon Footprint Impact:</strong><br>
+                        <span class="small text-dark">{{ waste_info.impact }}</span>
+                    </div>
+
+                    <div class="alert mt-2 p-3 rounded" style="background-color: #fff4e5; border: none; font-size: 0.95rem;">
+                        <strong>🎨 DIY Upcycling:</strong><br>
+                        <span class="small text-dark">{{ waste_info.upcycle }}</span>
+                    </div>
+
+                    <div class="d-grid mt-3">
+                        <a href="https://www.google.com/maps/search/nearby+{{ 'e-waste+and+' if waste_info.e_waste else '' }}recycling+centers" target="_blank" class="btn btn-outline-success btn-sm">📍 Find nearby {{ 'e-waste / ' if waste_info.e_waste else '' }}recycling center</a>
+                    </div>
+                    <input type="hidden" id="ttsText" value="The predicted waste is {{ prediction }}. Its reusability or recyclability is {{ waste_info.reuse_percentage }}. Please throw it in the {{ waste_info.bin_color }}. {{ waste_info.description }} {{ waste_info.impact }} {{ waste_info.upcycle }}">
+                    {% else %}
+                    <input type="hidden" id="ttsText" value="The predicted waste is {{ prediction }}.">
+                    {% endif %}
+                  </div>
+                {% endif %}
+
+                <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data" id="uploadForm">
+                  <ul class="nav nav-tabs mb-3" id="myTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload-pane" type="button" role="tab">Upload File</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link" id="camera-tab" data-bs-toggle="tab" data-bs-target="#camera-pane" type="button" role="tab">Use Camera</button>
+                    </li>
+                  </ul>
+                  
+                  <div class="tab-content" id="myTabContent">
+                    <div class="tab-pane fade show active" id="upload-pane" role="tabpanel" tabindex="0">
+                        <div class="mb-3">
+                            <label for="image" class="form-label">Select image</label>
+                            <input class="form-control" type="file" id="image" name="image" accept="image/png,image/jpeg">
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="camera-pane" role="tabpanel" tabindex="0">
+                        <div class="mb-3 text-center">
+                            <div class="bg-dark text-white p-2 rounded mb-2" id="cameraContainer" style="display: none; height: 300px; position:relative;">
+                                <video id="cameraVideo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;" autoplay playsinline></video>
+                            </div>
+                            <canvas id="cameraCanvas" style="display: none;"></canvas>
+                            <input type="hidden" name="image_base64" id="imageBase64">
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-secondary btn-sm" id="startCameraBtn">📹 Start Camera</button>
+                                <button type="button" class="btn btn-primary btn-sm" id="captureCameraBtn" style="display:none;">📸 Capture & Use</button>
+                            </div>
+                        </div>
+                    </div>
+                  </div>
+
+                  <button type="submit" class="btn btn-success mt-2">Upload & Predict</button>
+                </form>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="col-xl-4">
+
+          <div class="card card-soft p-4">
+            <h5 class="mb-3">Waste categories</h5>
+            <div class="row g-3">
+              <div class="col-6">
+                <div class="p-3 rounded-4 text-center" style="background:#eef7ff;">
+                  <div class="category-icon mb-3">📦</div>
+                  <div class="fw-semibold">Cardboard</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="p-3 rounded-4 text-center" style="background:#fff4e5;">
+                  <div class="category-icon mb-3">🍶</div>
+                  <div class="fw-semibold">Glass</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="p-3 rounded-4 text-center" style="background:#e9fbf0;">
+                  <div class="category-icon mb-3">🔩</div>
+                  <div class="fw-semibold">Metal</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="p-3 rounded-4 text-center" style="background:#fff0f6;">
+                  <div class="category-icon mb-3">📰</div>
+                  <div class="fw-semibold">Paper</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="p-3 rounded-4 text-center" style="background:#ecf9ef;">
+                  <div class="category-icon mb-3">🧴</div>
+                  <div class="fw-semibold">Plastic</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="p-3 rounded-4 text-center" style="background:#f8f9fa;">
+                  <div class="category-icon mb-3">🗑️</div>
+                  <div class="fw-semibold">Trash</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // Camera logic
+      const startCameraBtn = document.getElementById('startCameraBtn');
+      const captureCameraBtn = document.getElementById('captureCameraBtn');
+      const cameraContainer = document.getElementById('cameraContainer');
+      const cameraVideo = document.getElementById('cameraVideo');
+      const cameraCanvas = document.getElementById('cameraCanvas');
+      const imageBase64 = document.getElementById('imageBase64');
+      const imageInput = document.getElementById('image');
+      let videoStream = null;
+
+      if (startCameraBtn) {
+        startCameraBtn.addEventListener('click', async () => {
+          try {
+              videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+              cameraVideo.srcObject = videoStream;
+              cameraContainer.style.display = 'block';
+              startCameraBtn.style.display = 'none';
+              captureCameraBtn.style.display = 'inline-block';
+          } catch (err) {
+              alert("Error accessing camera: " + err.message);
+          }
+        });
+      }
+
+      if (captureCameraBtn) {
+        captureCameraBtn.addEventListener('click', () => {
+          if(!videoStream) return;
+          cameraCanvas.width = cameraVideo.videoWidth || 640;
+          cameraCanvas.height = cameraVideo.videoHeight || 480;
+          const context = cameraCanvas.getContext('2d');
+          context.drawImage(cameraVideo, 0, 0, cameraCanvas.width, cameraCanvas.height);
+          const dataUrl = cameraCanvas.toDataURL('image/jpeg', 0.9);
+          imageBase64.value = dataUrl;
+          
+          // clear file input
+          if (imageInput) imageInput.value = "";
+          
+          // Stop stream
+          videoStream.getTracks().forEach(track => track.stop());
+          cameraContainer.style.display = 'none';
+          startCameraBtn.style.display = 'inline-block';
+          startCameraBtn.innerText = '📹 Retake Picture';
+          captureCameraBtn.style.display = 'none';
+          alert("Image captured! You can now click 'Upload & Predict'.");
+        });
+      }
+
+      // TTS logic
+      const speakBtn = document.getElementById('speakBtn');
+      if (speakBtn) {
+         speakBtn.addEventListener('click', (e) => {
+             e.preventDefault();
+             const ttsTextInput = document.getElementById('ttsText');
+             if (ttsTextInput) {
+                 const ttsText = ttsTextInput.value;
+                 if ('speechSynthesis' in window) {
+                     window.speechSynthesis.cancel(); // Cancel any ongoing speech
+                     const utterance = new SpeechSynthesisUtterance(ttsText);
+                     window.speechSynthesis.speak(utterance);
+                 } else {
+                     alert("Text-to-speech is not supported in this browser.");
+                 }
+             }
+         });
+         
+         // Auto speak is disabled as requested by user. Only manual play is allowed.
+      }
+    </script>
+  </body>
+</html>
