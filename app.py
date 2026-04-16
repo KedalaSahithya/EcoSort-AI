@@ -43,22 +43,22 @@ WASTE_DETAILS = {
         "bin_color": "Blue Bin", 
         "reuse_percentage": "90%", 
         "description": "Recyclable, ensure it is dry and clean.",
-        "upcycle": "DIY Idea: Blend old paper with water to create your own gorgeous handmade textured paper or origami art.",
-        "impact": "Recycling a single stack of paper saves trees and decreases water consumption by up to 60%."
+        "upcycle": "DIY Idea: Blend old paper with water to create your own handmade paper or origami art.",
+        "impact": "Recycling paper saves trees and reduces water consumption."
     },
     "plastic": {
         "bin_color": "Blue/Yellow Bin", 
         "reuse_percentage": "50-80%", 
         "description": "Rinse containers before recycling.",
-        "upcycle": "DIY Idea: Cut the bottom off bottles to make mini-greenhouse domes for seedlings or bird feeders!",
-        "impact": "Recycling one plastic bottle saves enough energy to power a 60-watt light bulb for 6 hours."
+        "upcycle": "DIY Idea: Use bottles as plant holders or bird feeders!",
+        "impact": "Recycling plastic saves energy and reduces pollution."
     },
     "trash": {
         "bin_color": "Black/Red Bin", 
         "reuse_percentage": "0%", 
-        "description": "General waste, non-recyclable.",
-        "upcycle": "General waste is hard to upcycle. However, try assessing your waste to see if you can buy reusable alternatives next time!",
-        "impact": "Reducing general waste directly limits toxic greenhouse gases released from local landfills."
+        "description": "Non-recyclable waste.",
+        "upcycle": "Try reducing usage of such items.",
+        "impact": "Reducing trash helps minimize landfill pollution."
     }
 }
 
@@ -101,21 +101,9 @@ def predict_image(file_stream):
 
 
 def get_dashboard_context():
-    model_status = "loaded" if model is not None else "missing"
-    tf_status = "available" if tf is not None else "missing"
-    stats = {
-        "Users": 1,
-        "Model status": model_status,
-        "TensorFlow": tf_status,
-        "Demo account": DEMO_USER["username"],
-    }
     return {
         "username": session.get("username", "User"),
-        "stats": stats,
         "model_available": model_available(),
-        "model_path": MODEL_PATH,
-        "tf_available": tf is not None,
-        "class_names": class_names,
         "demo_mode": not model_available(),
     }
 
@@ -138,14 +126,13 @@ def login():
 
     error = None
     if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "").strip()
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
         if username == DEMO_USER["username"] and password == DEMO_USER["password"]:
             session["logged_in"] = True
             session["username"] = username
-            flash("Logged in successfully.", "success")
             return redirect(url_for("dashboard"))
-        error = "Invalid username or password."
+        error = "Invalid credentials"
 
     return render_template("login.html", error=error)
 
@@ -154,7 +141,6 @@ def login():
 def dashboard():
     if not is_logged_in():
         return redirect(url_for("login"))
-
     return render_template("dashboard.html", **get_dashboard_context())
 
 
@@ -165,50 +151,18 @@ def upload():
 
     prediction = None
     prediction_prob = None
-    upload_error = None
-    waste_info = None
 
-    if "image_base64" in request.form and request.form["image_base64"].strip():
-        try:
-            header, encoded = request.form["image_base64"].split(",", 1)
-            image_data = base64.b64decode(encoded)
-            file_stream = io.BytesIO(image_data)
-            filename = "camera_capture.jpg"
-            
-            if model_available():
-                prediction, prediction_prob = predict_image(file_stream)
-            else:
-                prediction, prediction_prob = demo_predict(filename)
-                flash("Demo prediction shown because the saved model is not available.", "warning")
-        except Exception as exc:
-            upload_error = f"Camera picture processing failed: {exc}"
-
-    elif "image" not in request.files or request.files["image"].filename == "":
-        upload_error = "No file selected. Please choose an image or use the camera."
-    else:
+    if "image" in request.files:
         image_file = request.files["image"]
-        if not allowed_file(image_file.filename):
-            upload_error = "Unsupported file type. Upload PNG or JPG images only."
+        if model_available():
+            prediction, prediction_prob = predict_image(image_file)
         else:
-            if model_available():
-                try:
-                    prediction, prediction_prob = predict_image(image_file)
-                except Exception as exc:
-                    upload_error = f"Prediction failed: {exc}"
-            else:
-                prediction, prediction_prob = demo_predict(image_file.filename)
-                upload_error = None
-                flash("Demo prediction shown because the saved model is not available.", "warning")
-
-    if prediction:
-        waste_info = WASTE_DETAILS.get(prediction.lower())
+            prediction, prediction_prob = demo_predict(image_file.filename)
 
     return render_template(
         "dashboard.html",
         prediction=prediction,
         prediction_prob=prediction_prob,
-        upload_error=upload_error,
-        waste_info=waste_info,
         **get_dashboard_context(),
     )
 
@@ -216,9 +170,10 @@ def upload():
 @app.route("/logout")
 def logout():
     session.clear()
-    flash("You have been logged out.", "info")
     return redirect(url_for("login"))
 
 
+# ✅ ✅ IMPORTANT FIX FOR RENDER
 if __name__ == "__main__":
-    app.run(debug=True, host="127.0.0.1", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host="0.0.0.0", port=port)
